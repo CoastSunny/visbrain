@@ -369,8 +369,7 @@ def spindlesdetect(elec, sf, threshold, hypno, nrem_only, fmin=12., fmax=14.,
 ###########################################################################
 
 
-def remdetect(elec, sf, hypno, rem_only, threshold, tmin=300, tmax=800,
-              min_distance_ms=300, smoothing_ms=200, deriv_ms=50):
+def remdetect(eog, sf, hypno, rem_only, threshold):
     """Perform a rapid eye movement (REM) detection.
 
     Function to perform a semi-automatic detection of rapid eye movements
@@ -390,17 +389,6 @@ def remdetect(elec, sf, hypno, rem_only, threshold, tmin=300, tmax=800,
     threshold: float
         Number of standard deviation of the derivative signal
         Threshold is defined as: mean + X * std(derivative)
-    tmin : int | 300
-        Minimum duration (ms) of rapid eye movement
-    tmax : int | 1500
-        Maximum duration (ms) of rapid eye movement
-    min_distance_ms : int | 300
-        Minimum distance (ms) between two saccades to consider them as two
-        distinct events.
-    smoothing_ms : int | 200 (= 5 Hz)
-        Time (ms) window of the smoothing.
-    deriv_ms : int | 50
-        Time (ms) window of derivative computation
 
     Returns
     -------
@@ -413,90 +401,36 @@ def remdetect(elec, sf, hypno, rem_only, threshold, tmin=300, tmax=800,
     duration_ms: float
         Duration (ms) of each REM detected
     """
-    # Find if hypnogram is loaded :
-    hyploaded = True if rem_only and 4 in hypno else False
+    fmax = np.minimum(45, sf / 2.0 - 0.75) # protect Nyquist
+    filteog = filt(sf, [1, fmax], eog, axis=1)
+    temp = np.sqrt(np.sum(filteog ** 2, axis=1))
+    indexmax = np.argmax(temp)
+    filteog = filt(sf, [1, 10], eog[indexmax,:])
+    temp = filteog - np.mean(filteog)
 
-    # Compute relative beta power
-    freqs = np.array([0.5, 4., 8., 12, 40])
-    beta_npow = morlet_power(elec, freqs, sf, norm=True)[-1]
-    beta_nfpow = smoothing(beta_npow, sf * (tmin / 1000))
-    # Vector of beta power supra-threshold values
-    idx_beta = np.where(beta_nfpow < np.percentile(beta_nfpow, 60))[0]
+    # Define threshold and delta (see peakdetect)
+    f, Pxx_spec = welch(filteog, sf, 'flattop', 1024, scaling='spectrum')
+    delta = 5 * np.sqrt(Pxx_spec.max())
+    th = np.mean(filteog) + threshold * np.std(filteog)
 
-    if hyploaded:
-        data = elec.copy()
-        data[(np.where(hypno < 4))] = 0
-        length = np.count_nonzero(data)
-        idx_zero = np.where(data == 0)
+    # Find peaks
+    if np.abs(np.max(temp)) > np.abs(np.min(temp)):
+        eog_events, _, _ = peakdetect(sf, filteog, get='max', threshold=th,
+                                           delta=delta)
     else:
-        data = elec
-        length = max(data.shape)
+        eog_events, _, _ = peakdetect(sf, filteog, get='min', threshold=th,
+                                           delta=delta)
 
-    # Compute smoothed derivative
-    sm_sig = smoothing(data, sf * (smoothing_ms / 1000))
-    deriv = derivative(sm_sig, deriv_ms, sf)
-    deriv = smoothing(deriv, sf * (smoothing_ms / 1000))
-    if hyploaded:
-        deriv[idx_zero] = np.nan
+    if rem_only and 4 in hypno:
+        eog_events = np.intersect1d(eog_events, np.where(hypno == 4)[0], True)
 
-    # Define hard and soft thresholds
-    hard_thr = np.nanmean(deriv) + threshold * np.nanstd(deriv)
-    soft_thr = 0.5 * hard_thr
+    number = eog_events.size
+    density = number / (filteog.size / sf / 60.)
 
-    with np.errstate(divide='ignore', invalid='ignore'):
-        idx_hard = np.where(deriv > hard_thr)[0]
-        idx_soft = np.where(deriv > soft_thr)[0]
-
-    # Find threshold-crossing indices of soft threshold
-    idx_zc_soft = _events_to_index(idx_soft).flatten()
-
-    if idx_hard.size > 0:
-        # Initialize rem vector
-        idx_rem = np.array([], dtype=int)
-
-        # Keep only period with low relative beta power (i.e. remove artefact)
-        idx_hard = np.intersect1d(idx_hard, idx_beta, True)
-
-        # Fill gap between events separated by less than min_distance_ms
-        idx_hard = _events_distance_fill(idx_hard, min_distance_ms, sf)
-
-        # Get where spindles start / end :
-        idx_start, idx_stop = _events_to_index(idx_hard).T
-
-        # Find true beginning / end using soft threshold
-        for s in idx_start:
-            d = s - idx_zc_soft
-            # Find distance to nearest soft threshold crossing before start
-            soft_beg = d[d > 0].min()
-            # Find distance to nearest soft threshold crossing before start
-            soft_end = np.abs(d[d < 0]).min()
-            idx_rem = np.append(idx_rem, np.arange(
-                                        s - soft_beg, s + soft_end))
-
-        # Fill gap between events separated by less than min_distance_ms
-        idx_rem = _events_distance_fill(idx_rem, min_distance_ms, sf)
-
-        # Get duration
-        idx_start, idx_stop = _events_to_index(idx_rem).T
-        duration_ms = (idx_stop - idx_start) * (1000 / sf)
-
-        # Remove events with bad duration
-        good_dur = np.where(np.logical_and(duration_ms > tmin,
-                                           duration_ms < tmax))[0]
-
-        idx_rem = _index_to_events(np.c_[idx_start, idx_stop][good_dur])
-
-        # Compute number, duration, density
-        idx_start, idx_stop = _events_to_index(idx_rem).T
-        number = idx_start.size
-        duration_ms = (idx_stop - idx_start) * (1000 / sf)
-        density = number / (length / sf / 60.)
-
-        return idx_rem, number, density, duration_ms
-
+    if number > 1:
+        return eog_events, number, density, np.array([], dtype=int)
     else:
         return np.array([], dtype=int), 0., 0., np.array([], dtype=int)
-
 
 ###########################################################################
 # SLOW WAVE DETECTION
