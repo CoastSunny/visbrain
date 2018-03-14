@@ -17,8 +17,8 @@ class TestRwHypno(_TestVisbrain):
     def test_oversample_hypno(self):
         """Test function oversample_hypno."""
         hyp = self._get_hypno()
-        hyp_over = oversample_hypno(hyp, 12)
-        to_hyp = np.array([-1, -1, 4, 4, 2, 2, 3, 3, 0, 0, 0, 0])
+        hyp_over = oversample_hypno(hyp, 10)
+        to_hyp = np.array([-1, -1, 4, 4, 2, 2, 3, 3, 0, 0])
         assert np.array_equal(hyp_over, to_hyp)
 
     def test_write_hypno_txt(self):
