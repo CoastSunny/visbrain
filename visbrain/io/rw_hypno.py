@@ -35,12 +35,13 @@ def oversample_hypno(hypno, n):
     hypno : array_like
         The hypnogram of shape (n,)
     """
+    npts = len(hypno)
+
     # Get the repetition number :
-    rep_nb = int(n / len(hypno))
+    rep_nb = int(n / npts)
 
     # Repeat hypnogram :
     hypno = np.repeat(hypno, rep_nb)
-    npts = len(hypno)
 
     # Check size
     if npts < n:
@@ -77,7 +78,9 @@ def write_hypno_txt(filename, hypno, sf, window=1.):
 
     # Save hypno
     h = hypno.shape[0]
+    # Warning: a small jitter may occur when (sf).is_integer = False
     step = int(sf)
+    # Remove incomplete last second
     max_hypno = int(h - (h % sf)) if h % sf != 0 else h
     np.savetxt(filename, hypno[:max_hypno:step].astype(int), fmt='%s')
 
@@ -106,8 +109,10 @@ def write_hypno_hyp(filename, hypno, sf, sfori, n):
     # Check data format
     hypno = hypno.astype(int)
     hypno[hypno == 4] = 5
-    step = int(sf)
     h = hypno.shape[0]
+    # Warning: a small jitter may occur when (sf).is_integer = False
+    step = int(sf)
+    # Remove incomplete last second
     max_hypno = int(h - (h % sf)) if h % sf != 0 else h
 
     hdr = np.array([['time_base 1.000000'],
@@ -209,7 +214,7 @@ def read_hypno_hyp(path):
     hyp = np.genfromtxt(path, delimiter='\n', usecols=[0],
                         dtype=None, skip_header=0, encoding='utf-8')
 
-    # Get sampling frequency of hypnogram
+    # Get sampling frequency of hypnogram (typically 1 Hz)
     sf_hyp = 1 / float(hyp[0].split()[1])
 
     # Extract hypnogram values
