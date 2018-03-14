@@ -101,9 +101,9 @@ class UiMenu(HelpMenu):
 
             # Switch between differents types :
             if ext == '.hyp':
-                write_hypno_hyp(filename, self._hypno, self._sfori, self._N)
+                write_hypno_hyp(filename, self._hypno, self._sf, self._sfori, self._N)
             elif ext == '.txt':
-                write_hypno_txt(filename, self._hypno, self._sfori, self._N, 1)
+                write_hypno_txt(filename, self._hypno, self._sf, 1)
             elif ext == '.xlsx':
                 write_hypno_xlsx(filename, self._hypno, self._time)
             else:

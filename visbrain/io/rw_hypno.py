@@ -36,7 +36,7 @@ def oversample_hypno(hypno, n):
         The hypnogram of shape (n,)
     """
     # Get the repetition number :
-    rep_nb = float(np.floor(n / len(hypno)))
+    rep_nb = int(np.floor(n / len(hypno)))
 
     # Repeat hypnogram :
     hypno = np.repeat(hypno, rep_nb)
@@ -52,7 +52,7 @@ def oversample_hypno(hypno, n):
     return hypno.astype(int)
 
 
-def write_hypno_txt(filename, hypno, sfori, n, window=1.):
+def write_hypno_txt(filename, hypno, sf, window=1.):
     """Save hypnogram in txt file format (txt).
 
     Header is in file filename_description.txt
@@ -63,10 +63,8 @@ def write_hypno_txt(filename, hypno, sfori, n, window=1.):
         Filename (with full path) of the file to save
     hypno : array_like
         Hypnogram array, same length as data
-    sfori : int
-        Original sampling rate of the raw data
-    n : int
-        Original number of points in the raw data
+    sf : int
+        Downsampling frequency of the raw data
     window : float | 1
         Time window (second) of each point in the hypno
         Default is one value per second
@@ -78,8 +76,10 @@ def write_hypno_txt(filename, hypno, sfori, n, window=1.):
         base)[0] + '_description.txt')
 
     # Save hypno
-    step = int(hypno.shape / np.round(n / sfori))
-    np.savetxt(filename, hypno[::step].astype(int), fmt='%s')
+    h = hypno.shape[0]
+    step = int(sf)
+    max_hypno = int(h - (h % sf)) if h % sf != 0 else h
+    np.savetxt(filename, hypno[:max_hypno:step].astype(int), fmt='%s')
 
     # Save header file
     hdr = np.array([['time ' + str(window)], ['W 0'], ['N1 1'], ['N2 2'],
@@ -87,7 +87,7 @@ def write_hypno_txt(filename, hypno, sfori, n, window=1.):
     np.savetxt(descript, hdr, fmt='%s')
 
 
-def write_hypno_hyp(filename, hypno, sfori, n):
+def write_hypno_hyp(filename, hypno, sf, sfori, n):
     """Save hypnogram in Elan file format (hyp).
 
     Parameters
@@ -106,7 +106,9 @@ def write_hypno_hyp(filename, hypno, sfori, n):
     # Check data format
     hypno = hypno.astype(int)
     hypno[hypno == 4] = 5
-    step = int(hypno.shape / np.round(n / sfori))
+    step = int(sf)
+    h = hypno.shape[0]
+    max_hypno = int(h - (h % sf)) if h % sf != 0 else h
 
     hdr = np.array([['time_base 1.000000'],
                     ['sampling_period ' + str(np.round(1 / sfori, 8))],
@@ -114,7 +116,7 @@ def write_hypno_hyp(filename, hypno, sfori, n):
                     ['epoch_list']]).flatten()
 
     # Save
-    export = np.append(hdr, hypno[::step].astype(str))
+    export = np.append(hdr, hypno[:max_hypno:step].astype(str))
     np.savetxt(filename, export, fmt='%s')
 
 
