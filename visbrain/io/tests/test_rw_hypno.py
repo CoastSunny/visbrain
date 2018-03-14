@@ -29,7 +29,7 @@ class TestRwHypno(_TestVisbrain):
     def test_write_hypno_hyp(self):
         """Test function write_hypno_hyp."""
         hyp = self._get_hypno()
-        write_hypno_hyp(self.to_tmp_dir('hyp.hyp'), hyp, 1000., 5000)
+        write_hypno_hyp(self.to_tmp_dir('hyp.hyp'), hyp, 100.)
 
     def test_write_hypno_xlsx(self):
         """Test function write_hypno_xlsx."""
