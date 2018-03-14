@@ -5,7 +5,7 @@ import numpy as np
 from vispy.util import profiler
 
 
-__all__ = ('Profiler', 'get_dsf', 'set_if_not_none')
+__all__ = ('Profiler', 'get_dsf', 'find_closest_divisor', 'set_if_not_none')
 
 
 class Profiler(object):
@@ -54,22 +54,60 @@ class Profiler(object):
         return msg
 
 
+def find_closest_divisor(n, m):
+    """Find the evenly divisor of n closest to m.
+
+    Parameters
+    ----------
+    n : float
+        Numerator
+    m : float
+        Denominator
+
+    Returns
+    -------
+    new_m : float
+        The evenely divisor of n closest to m.
+    """
+    divisors = np.array(
+        [i for i in range(1, int(np.sqrt(n) + 1)) if n % i == 0])
+    divisions = n / divisors
+    return divisions[np.argmin(np.abs(m - divisions))]
+
+
 def get_dsf(downsample, sf):
-    """Get the downsampling factor.
+    """Get the downsampling factor and frequency.
 
     Parameters
     ----------
     downsample : float
-        The down-sampling frequency.
+        Desired downsampling frequency
     sf : float
-        The sampling frequency
+        Original sampling frequency
+
+    Returns
+    -------
+    dsf : int
+        Downsampling factor
+    dsf : float
+        Adjusted downsampling frequency
+
     """
     if all([isinstance(k, (int, float)) for k in (downsample, sf)]):
-        dsf = int(np.round(sf / downsample))
-        downsample = float(sf / dsf)
-        return dsf, downsample
+        # Check that sf is a whole number superior to downsample
+        if sf.is_integer() and sf > downsample:
+            # Check that sf is EVENLY divisible by downsample
+            if sf % downsample != 0:
+                m = find_closest_divisor(sf, downsample)
+                # Assert that the new downsampling freq is not below the original downsampling freq
+                downsample = sf if m < downsample else m
+            dsf = int(np.round(sf / downsample))
+            downsample = float(sf / dsf)
+            return dsf, downsample
+        else:
+            return 1, sf
     else:
-        return 1, downsample
+        return 1, sf
 
 
 def set_if_not_none(to_set, value, cond=True):
