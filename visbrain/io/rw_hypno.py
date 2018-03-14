@@ -36,7 +36,7 @@ def oversample_hypno(hypno, n):
         The hypnogram of shape (n,)
     """
     # Get the repetition number :
-    rep_nb = int(np.floor(n / len(hypno)))
+    rep_nb = int(n / len(hypno))
 
     # Repeat hypnogram :
     hypno = np.repeat(hypno, rep_nb)
