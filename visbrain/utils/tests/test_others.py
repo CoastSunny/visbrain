@@ -1,5 +1,6 @@
 """Test functions in others.py."""
-from visbrain.utils.others import (get_dsf, set_if_not_none, find_closest_divisor)
+from visbrain.utils.others import (get_dsf, set_if_not_none,
+                                   find_closest_divisor)
 from visbrain.io.path import get_data_path
 
 

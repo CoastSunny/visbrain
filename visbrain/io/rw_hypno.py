@@ -35,18 +35,16 @@ def oversample_hypno(hypno, n):
     hypno : array_like
         The hypnogram of shape (n,)
     """
-    npts = len(hypno)
-
     # Get the repetition number :
-    rep_nb = int(n / npts)
+    rep_nb = int(n / len(hypno))
 
     # Repeat hypnogram :
     hypno = np.repeat(hypno, rep_nb)
 
     # Check size
-    if npts < n:
+    if len(hypno) < n:
         hypno = np.append(hypno, hypno[-1] * np.ones((n - npts)))
-    elif n > npts:
+    elif n > len(hypno):
         raise ValueError("The length of the hypnogram  vector must "
                          "be " + str(n) + " (Currently : " + str(npts) + ".")
 

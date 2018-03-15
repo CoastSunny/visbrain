@@ -99,7 +99,7 @@ def get_dsf(downsample, sf):
             # Check that sf is EVENLY divisible by downsample
             if sf % downsample != 0:
                 m = find_closest_divisor(sf, downsample)
-                # Assert that the new downsampling freq is not below the original downsampling freq
+                # Assert that the new downsampling freq > 100Hz
                 downsample = sf if m < downsample else m
             dsf = int(np.round(sf / downsample))
             downsample = float(sf / dsf)
